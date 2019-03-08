@@ -2,9 +2,9 @@
 #include <RH_RF95.h>                    //LoRa Radio support
 #include <avr/dtostrf.h>                //helps deal with floats in strings
 
-#define debug                   //comment this out to not depend on USB uart.
+//#define debug                   //comment this out to not depend on USB uart.
 #define showReceivedPackets     //show recived messages from the mast head unit as they come in
-#define ackReceivedPackets      //should we send acks or not?
+//#define ackReceivedPackets      //should we send acks or not?
 //#define showPacketLoss          //print packet lost messages
 //#define showRSSI                //print out RSSI and SNR information
 
@@ -134,7 +134,7 @@ void loop() {
           //12.6,N - Wind speed in knots
           //6.5, M - Wind speed in meters per second
           //23.3, K - Wind speed in Km/Hr
-          //*52 - Checksum
+          //*44 - Checksum
           char boatSide;
           if(dir < 180)
             boatSide = 'R';
