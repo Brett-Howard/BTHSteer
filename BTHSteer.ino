@@ -8,8 +8,6 @@
 //#define showPacketLoss          //print packet lost messages
 //#define showRSSI                //print out RSSI and SNR information
 
-#define radioTimeoutReset 5000      //reset radio reception variables if no message is received for this period.
-
 #define maxNMEALength 64
 
 #define RFM95_CS 8
@@ -221,74 +219,4 @@ extern "C" char *sbrk(int i);
 int freeRam () {
   char stack_dummy = 0;
   return &stack_dummy - sbrk(0);
-}
-
-void TC5_Handler (void) {   //This timer gets moved to the mast head in a wireless version of this project
-    TC5->COUNT16.INTFLAG.bit.MC0 = 1; //don't change this, it's part of the timer code
-}
-
-
-//Just blinks an LED you can set the number of times and the duration of the blinks
-//This only works for the LEDs on the GPIO pins directly on the Arduino board.
-static void blip(int ledPin, int times, int dur) {
-  pinMode(ledPin, OUTPUT);
-  for (int i = 0; i < times; i++) {
-    digitalWrite(ledPin, !digitalRead(ledPin));
-    delay(dur);
-    digitalWrite(ledPin, !digitalRead(ledPin));
-    delay(dur);
-  }
-} //blip
-
-//This is a way of saying we've died on the vine.  This function is meant to never return.
-static void failBlink() {
-  pinMode(RED_LED_PIN, OUTPUT );  //seems that I need this here because something is breaking this.
-  #ifdef debug
-    cout << "got to FailBlink" << endl;
-  #endif
-  while(1) blip(RED_LED_PIN, 1, 75);
-} //failBlink
-
-//////////////////////////////////////////////////////Timer Counter Configuration///////////////////////////////////////////////////
-//configures the timer counter to allow for a slow tick to use if/when the wind gets so low the anemometer interrupts stop
-void tcConfigure(int sampleRate)
-{
-  // Enable GCLK for TCC2 and TC5 (timer counter input clock)
-  GCLK->CLKCTRL.reg = (uint16_t) (GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK0 | GCLK_CLKCTRL_ID(GCM_TC4_TC5)) ;
-  while (GCLK->STATUS.bit.SYNCBUSY);
-
-  tcReset(); //reset TC5
-
-  // Set Timer counter Mode to 16 bits
-  TC5->COUNT16.CTRLA.reg |= TC_CTRLA_MODE_COUNT32;
-  // Set TC5 mode as match frequency
-  TC5->COUNT16.CTRLA.reg |= TC_CTRLA_WAVEGEN_MFRQ;
-  //set prescaler and enable TC5
-  TC5->COUNT16.CTRLA.reg |= TC_CTRLA_PRESCALER_DIV1024 | TC_CTRLA_ENABLE;
-  //set TC5 timer counter based off of the system clock and the user defined sample rate or waveform
-  TC5->COUNT16.CC[0].reg = (uint16_t) (SystemCoreClock / sampleRate - 1);
-  delay(10);
-
-  // Configure interrupt request
-  NVIC_DisableIRQ(TC5_IRQn);
-  NVIC_ClearPendingIRQ(TC5_IRQn);
-  NVIC_SetPriority(TC5_IRQn, 0);
-  NVIC_EnableIRQ(TC5_IRQn);
-
-  // Enable the TC5 interrupt request
-  TC5->COUNT16.INTENSET.bit.MC0 = 1;
-  delay(10); //wait until TC5 is done syncing 
-} 
-//Reset TC5 
-void tcReset()
-{
-  TC5->COUNT16.CTRLA.reg = TC_CTRLA_SWRST;
-  delay(10);
-  while (TC5->COUNT16.CTRLA.bit.SWRST);
-}
-//disable TC5
-void tcDisable()
-{
-  TC5->COUNT16.CTRLA.reg &= ~TC_CTRLA_ENABLE;
-  delay(10);
 }
