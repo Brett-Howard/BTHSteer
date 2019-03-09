@@ -8,6 +8,12 @@
 //#define showPacketLoss          //print packet lost messages
 //#define showRSSI                //print out RSSI and SNR information
 
+#define NMEABaud 4800
+
+//turn on which NMEA0183 sentences to send
+#define NMEA_VWR 1
+#define NMEA_MWV 1
+
 #define maxNMEALength 64
 
 #define RFM95_CS 8
@@ -33,7 +39,7 @@ void setup() {
 	  while(!Serial);  //wait for USB port to be initialized
   #endif
 
-  Serial1.begin(4800);   //configure NMEA output serial port to 4800 baud for the ST2000
+  Serial1.begin(NMEABaud, SERIAL_8N1);   //configure NMEA output serial port to 4800 baud for the ST2000
 
 
   //setup radio pins
@@ -87,7 +93,7 @@ void loop() {
 
       if (rf95.recv(buf, &len))
       {
-        if(buf[0] != 'A') {  //ignore the ACK messages from BTHWind
+        if(buf[0] != 'A') {  //ignore the ACK messages from BTHWind (wind data could start with decimal 65 "ascii A" but it would require over 80 knots of wind if my math is right.)
           #ifdef debug
             #ifdef showRSSI
               cout << "RSSI: " << rf95.lastRssi() << " SNR: " << rf95.lastSNR() << endl;
@@ -124,36 +130,14 @@ void loop() {
             rf95.send(data, sizeof(data));  //transmit ACK response
             rf95.waitPacketSent();
           #endif
+          
+          //hard code test
+          //dir = 175;
+          //spd = 732;
 
-          //transmit Wind NMEA data to autopilot
-          //Example Message: $BTVWR,045.0,L,12.6,N,6.5,M,23.3,K*44
-          //045.0 - Relative Wind Angle 0 to 180 degrees
-          //L - Left or Right (really should be P or S but I digress)...
-          //12.6,N - Wind speed in knots
-          //6.5, M - Wind speed in meters per second
-          //23.3, K - Wind speed in Km/Hr
-          //*44 - Checksum
-          char boatSide;
-          if(dir < 180)
-            boatSide = 'R';
-          else
-          {
-            boatSide = 'L';
-            dir = 360 - dir;
-          }
-          char AWSKts[7];
-          dtostrf(float(spd/100.0),0,1, AWSKts);  //converts the float to a c_str with no padding and 1 digit of precision.
-          char AWSMps[7];
-          dtostrf(ktsToMps(float(spd/100.0)),0,1, AWSMps);
-          char AWSKph[7];
-          dtostrf(ktsToKph(float(spd/100.0)),0,1, AWSKph);
-          char tmp[maxNMEALength];
-
-          //create the NMEA0183 string to be sent.
-          sprintf(tmp,"$BTVWR,%03d.0,%c,%s,N,%s,M,%s,K\0",dir,boatSide,AWSKts,AWSMps,AWSKph);
-
-          //check for proper formatting, calculate the CRC and transmit string.
-          nmeaSend(tmp);
+          //send NMEA sentences that are enabled.
+          if(NMEA_VWR) { sendVWR(spd, dir); }
+          if(NMEA_MWV) { sendMWV(spd, dir); }
         }
       }
       else {
@@ -165,6 +149,61 @@ void loop() {
   
     //cout << F("Free Mem: ") << freeRam() << endl;
 }  //loop
+
+void sendVWR (uint16_t spd, int16_t dir)
+{
+  //Example Message: $BTVWR,045.0,L,12.6,N,6.5,M,23.3,K*44
+  //045.0 - Relative Wind Angle 0 to 180 degrees
+  //L - Left or Right (really should be P or S but I digress)...
+  //12.6,N - Wind speed in knots
+  //6.5, M - Wind speed in meters per second
+  //23.3, K - Wind speed in Km/Hr
+  //*44 - Checksum
+  char boatSide;
+  if(dir < 180)
+    boatSide = 'R';
+  else
+  {
+    boatSide = 'L';
+    dir = 360 - dir;
+  }
+  char AWSKts[7];
+  dtostrf(float(spd/100.0),0,1, AWSKts);  //converts the float to a c_str with no padding and 1 digit of precision.
+  char AWSMps[7];
+  dtostrf(ktsToMps(float(spd/100.0)),0,1, AWSMps);
+  char AWSKph[7];
+  dtostrf(ktsToKph(float(spd/100.0)),0,1, AWSKph);
+  char tmp[maxNMEALength];
+
+  //create the NMEA0183 string to be sent.
+  sprintf(tmp,"BTVWR,%03d.0,%c,%s,N,%s,M,%s,K\0",dir,boatSide,AWSKts,AWSMps,AWSKph);
+
+  //check for proper formatting, calculate the CRC and transmit string.
+  nmeaSend(tmp);
+}
+
+void sendMWV(uint16_t spd, int16_t dir)
+{
+  //                1   2 3   4 5 6
+  //                |   | |   | | |
+  //Example: $--MWV,x.x,a,x.x,a,A*hh<CR><LF>
+  //Field Number:
+  //1. Wind Angle, 0 to 360 degrees
+  //2. Reference, R = Relative, T = True
+  //3. Wind Speed
+  //4. Wind Speed Units, K/M/N (K=KPH, M=MPH, N=Knots)
+  //5. Status, A = Data Valid
+  //6. Checksum
+
+  char tmp[maxNMEALength];
+
+  char AWSKts[7];
+  dtostrf(float(spd/100.0),0,1, AWSKts);  //converts the float to a c_str with no padding and 1 digit of precision.
+
+  sprintf(tmp, "BTMWV,%03d.0,R,%s,N,A\0", dir, AWSKts);
+
+  nmeaSend(tmp);
+}
 
 //nmeaSend expects a null terminated char array.
 //each message takes about 80mS to transmit at 4800 baud.
