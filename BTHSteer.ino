@@ -2,7 +2,7 @@
 #include <RH_RF95.h>                    //LoRa Radio support
 #include <avr/dtostrf.h>                //helps deal with floats in strings
 
-//#define debug                   //comment this out to not depend on USB uart.
+#define debug                   //comment this out to not depend on USB uart.
 #define showReceivedPackets     //show recived messages from the mast head unit as they come in
 //#define ackReceivedPackets      //should we send acks or not?
 //#define showPacketLoss          //print packet lost messages
@@ -75,7 +75,7 @@ void setup() {
   #endif
 
   //power is adjustible from 5 to 23dBm
-  rf95.setTxPower(5);  //leaving at the default power because this is plugged in (mashead is at 5dBm)
+  rf95.setTxPower(5);
   rf95.setModemConfig(RH_RF95::ModemConfigChoice::Bw125Cr45Sf128);
 }  //setup
 
@@ -84,8 +84,8 @@ void loop() {
     int16_t dir;
     uint8_t messageCount;
     uint16_t battVoltage;
-
-    if (rf95.available())
+    
+    /*if (rf95.available())
     {
       uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
       uint8_t len = sizeof(buf);
@@ -146,8 +146,24 @@ void loop() {
         #endif
       }
     }
-  
+    
     //cout << F("Free Mem: ") << freeRam() << endl;
+    */
+    
+    if(millis() < 10000)
+    {
+      sendVWR(120, 45);
+    }
+    else if(millis() < 20000)
+    {
+      sendVWR(120, 48);
+    }
+    else if(millis() < 30000)
+    {
+      sendVWR(120, 42);
+    }
+    delay(100);
+
 }  //loop
 
 void sendVWR (uint16_t spd, int16_t dir)
