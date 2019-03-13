@@ -84,6 +84,7 @@ void loop() {
     int16_t dir;
     uint8_t messageCount;
     uint16_t battVoltage;
+    static uint32_t startTime;
     
     /*if (rf95.available())
     {
@@ -150,38 +151,51 @@ void loop() {
     //cout << F("Free Mem: ") << freeRam() << endl;
     */
     
-    if(millis() < 10000)
+    if(millis()-startTime < 10000)
     {
-      sendVWR(120, 45);
+      sendVWR(630, 45);
     }
-    else if(millis() < 20000)
+    else if(millis()-startTime < 20000)
     {
-      sendVWR(120, 48);
+      sendVWR(640, 40);
     }
-    else if(millis() < 30000)
+    else if(millis()-startTime < 30000)
     {
-      sendVWR(120, 42);
+      sendVWR(620, 50);
     }
-    delay(100);
+    else
+    {
+      startTime = millis();
+    }
+    
+    delay(200);
 
 }  //loop
 
 void sendVWR (uint16_t spd, int16_t dir)
 {
   //Example Message: $BTVWR,045.0,L,12.6,N,6.5,M,23.3,K*44
-  //045.0 - Relative Wind Angle 0 to 180 degrees
-  //L - Left or Right (really should be P or S but I digress)...
-  //12.6,N - Wind speed in knots
-  //6.5, M - Wind speed in meters per second
-  //23.3, K - Wind speed in Km/Hr
-  //*44 - Checksum
+  //       1   2 3   4 5   6 7   8 9
+  //       |   | |   | |   | |   | |
+  //$--VWR,x.x,a,x.x,N,x.x,M,x.x,K*hh<CR><LF>
+  //Field Number:
+  //1. Wind direction magnitude in degrees
+  //2. Wind direction Left/Right of bow
+  //3. Speed
+  //4. N = Knots  
+  //5. Speed
+  //6. M = Meters Per Second
+  //7. Speed  
+  //8. K = Kilometers Per Hour
+  //9. Checksum
+
   char boatSide;
   if(dir < 180)
     boatSide = 'R';
   else
   {
     boatSide = 'L';
-    dir = 360 - dir;
+    dir = 360 - dir;  //my anemometer object returns 0 to 360 rotating counter clockwise so this converts to bow referenced left or right.
   }
   char AWSKts[7];
   dtostrf(float(spd/100.0),0,1, AWSKts);  //converts the float to a c_str with no padding and 1 digit of precision.
@@ -192,8 +206,8 @@ void sendVWR (uint16_t spd, int16_t dir)
   char tmp[maxNMEALength];
 
   //create the NMEA0183 string to be sent.
-  sprintf(tmp,"BTVWR,%03d.0,%c,%s,N,%s,M,%s,K\0",dir,boatSide,AWSKts,AWSMps,AWSKph);
-
+  sprintf(tmp,"BTVWR,%03d,%c,%s,N,%s,M,%s,K\0",dir,boatSide,AWSKts,AWSMps,AWSKph);
+  
   //check for proper formatting, calculate the CRC and transmit string.
   nmeaSend(tmp);
 }
@@ -251,12 +265,12 @@ void nmeaSend(char* s)
   }
 
   //format string
-  snprintf(tmp, maxNMEALength, "$%s*%02X",s,checksum);
+  snprintf(tmp, maxNMEALength, "$%s*%02X\r\n",s,checksum);
   
   #ifdef debug
-    cout << tmp << endl;
+    cout << tmp;
   #endif
-  Serial1.println(tmp);
+  Serial1.print(tmp);
 }
 
 float ktsToMps(float a)
