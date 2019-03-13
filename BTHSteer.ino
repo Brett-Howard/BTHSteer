@@ -2,7 +2,7 @@
 #include <RH_RF95.h>                    //LoRa Radio support
 #include <avr/dtostrf.h>                //helps deal with floats in strings
 
-#define debug                   //comment this out to not depend on USB uart.
+//#define debug                   //comment this out to not depend on USB uart.
 #define showReceivedPackets     //show recived messages from the mast head unit as they come in
 //#define ackReceivedPackets      //should we send acks or not?
 //#define showPacketLoss          //print packet lost messages
@@ -36,7 +36,7 @@ RH_RF95 rf95(RFM95_CS, RFM95_INT);   //instantiate the radio object
 void setup() {
   #ifdef debug
   	Serial.begin(115200);
-	  while(!Serial);  //wait for USB port to be initialized
+	  //while(!Serial);  //wait for USB port to be initialized
   #endif
 
   Serial1.begin(NMEABaud, SERIAL_8N1);   //configure NMEA output serial port to 4800 baud for the ST2000
@@ -86,7 +86,7 @@ void loop() {
     uint16_t battVoltage;
     static uint32_t startTime;
     
-    /*if (rf95.available())
+    if (rf95.available())
     {
       uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
       uint8_t len = sizeof(buf);
@@ -149,27 +149,6 @@ void loop() {
     }
     
     //cout << F("Free Mem: ") << freeRam() << endl;
-    */
-    
-    if(millis()-startTime < 10000)
-    {
-      sendVWR(630, 45);
-    }
-    else if(millis()-startTime < 20000)
-    {
-      sendVWR(640, 40);
-    }
-    else if(millis()-startTime < 30000)
-    {
-      sendVWR(620, 50);
-    }
-    else
-    {
-      startTime = millis();
-    }
-    
-    delay(200);
-
 }  //loop
 
 void sendVWR (uint16_t spd, int16_t dir)
@@ -230,7 +209,7 @@ void sendMWV(uint16_t spd, int16_t dir)
   char AWSKts[7];
   dtostrf(float(spd/100.0),0,1, AWSKts);  //converts the float to a c_str with no padding and 1 digit of precision.
 
-  sprintf(tmp, "BTMWV,%03d.0,R,%s,N,A\0", dir, AWSKts);
+  sprintf(tmp, "BTMWV,%03d,R,%s,N,A\0", dir, AWSKts);
 
   nmeaSend(tmp);
 }
