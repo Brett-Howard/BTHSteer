@@ -153,22 +153,22 @@ void loop() {
     
     if(millis()-startTime < 10000)
     {
-      sendVWR(630, 45);
+      sendVWR(630+random(-75,75), 45+random(-5, 5));
     }
     else if(millis()-startTime < 20000)
     {
-      sendVWR(640, 40);
+      sendVWR(640+random(-75,75), 40+random(-5, 5));
     }
     else if(millis()-startTime < 30000)
     {
-      sendVWR(620, 50);
+      sendVWR(620+random(-75,75), 50+random(-5, 5));
     }
     else
     {
       startTime = millis();
     }
     
-    delay(200);
+    delay(2000);  //raymarine recommends a 0.5Hz update rate.
 
 }  //loop
 
