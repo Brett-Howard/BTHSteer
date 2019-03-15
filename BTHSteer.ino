@@ -12,7 +12,7 @@
 
 //turn on which NMEA0183 sentences to send
 #define NMEA_VWR 1
-#define NMEA_MWV 1
+#define NMEA_MWV 0
 
 #define maxNMEALength 64
 
@@ -84,7 +84,7 @@ void loop() {
     int16_t dir;
     uint8_t messageCount;
     uint16_t battVoltage;
-    static uint32_t startTime;
+    static uint32_t lastSendTime;
     
     if (rf95.available())
     {
@@ -136,9 +136,13 @@ void loop() {
           //dir = 175;
           //spd = 732;
 
-          //send NMEA sentences that are enabled.
-          if(NMEA_VWR) { sendVWR(spd, dir); }
-          if(NMEA_MWV) { sendMWV(spd, dir); }
+          if(millis() >= lastSendTime + 2000)  //raymarine recommends only transmitting data at 0.5Hz
+          {
+            //send NMEA sentences that are enabled
+            if(NMEA_VWR) { sendVWR(spd, dir); }
+            if(NMEA_MWV) { sendMWV(spd, dir); }
+            lastSendTime = millis();
+          }
         }
       }
       else {
@@ -171,10 +175,15 @@ void sendVWR (uint16_t spd, int16_t dir)
   char boatSide;
   if(dir < 180)
     boatSide = 'R';
-  else
+  else if(dir < 360)
   {
     boatSide = 'L';
     dir = 360 - dir;  //my anemometer object returns 0 to 360 rotating counter clockwise so this converts to bow referenced left or right.
+  }
+  else  //should never happen but best to make sure data remains sane.
+  {
+    boatSide = 'L';
+    dir = 0;
   }
   char AWSKts[7];
   dtostrf(float(spd/100.0),0,1, AWSKts);  //converts the float to a c_str with no padding and 1 digit of precision.
@@ -185,7 +194,7 @@ void sendVWR (uint16_t spd, int16_t dir)
   char tmp[maxNMEALength];
 
   //create the NMEA0183 string to be sent.
-  sprintf(tmp,"BTVWR,%03d,%c,%s,N,%s,M,%s,K\0",dir,boatSide,AWSKts,AWSMps,AWSKph);
+  sprintf(tmp,"BTVWR,%03d.0,%c,%s,N,%s,M,%s,K\0",dir,boatSide,AWSKts,AWSMps,AWSKph);
   
   //check for proper formatting, calculate the CRC and transmit string.
   nmeaSend(tmp);
@@ -209,7 +218,7 @@ void sendMWV(uint16_t spd, int16_t dir)
   char AWSKts[7];
   dtostrf(float(spd/100.0),0,1, AWSKts);  //converts the float to a c_str with no padding and 1 digit of precision.
 
-  sprintf(tmp, "BTMWV,%03d,R,%s,N,A\0", dir, AWSKts);
+  sprintf(tmp, "BTMWV,%03d.0,R,%s,N,A\0", dir, AWSKts);
 
   nmeaSend(tmp);
 }
@@ -252,15 +261,8 @@ void nmeaSend(char* s)
   Serial1.print(tmp);
 }
 
-float ktsToMps(float a)
-{
-  return a*0.514444;
-}
-
-float ktsToKph(float a)
-{
-  return a*1.852;
-}
+inline float ktsToMps(float a) { return a*0.514444; }
+inline float ktsToKph(float a) { return a*1.852; }
 
 //A function that allows for finding out how much free memory is available.
 extern "C" char *sbrk(int i); 
