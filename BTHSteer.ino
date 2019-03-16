@@ -157,11 +157,11 @@ void loop() {
     }
     else if(millis()-startTime < 20000)
     {
-      sendVWR(640+random(-75,75), 40+random(-5, 5));
+      sendVWR(640+random(-75,75), 35+random(-5, 5));
     }
     else if(millis()-startTime < 30000)
     {
-      sendVWR(620+random(-75,75), 50+random(-5, 5));
+      sendVWR(620+random(-75,75), 25+random(-5, 5));
     }
     else
     {
